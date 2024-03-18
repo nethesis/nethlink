@@ -1,12 +1,11 @@
-import { createWindow } from '@/lib/windowConstructor'
+import { AccountController } from '../controllers'
 import { BaseWindow } from './BaseWindow'
 
 export class LoginWindow extends BaseWindow {
   constructor() {
-    const size = { w: 300, h: 400 }
     super('loginpage', {
-      width: size.w,
-      height: size.h,
+      width: 500,
+      height: 0,
       show: false,
       fullscreenable: false,
       autoHideMenuBar: true,
@@ -14,11 +13,11 @@ export class LoginWindow extends BaseWindow {
       alwaysOnTop: true,
       minimizable: false,
       maximizable: false,
-      movable: false,
+      movable: true,
       resizable: false,
       skipTaskbar: true,
       titleBarStyle: 'hidden',
-      roundedCorners: false,
+      roundedCorners: true,
       parent: undefined,
       transparent: true,
       hiddenInMissionControl: true,
@@ -28,8 +27,31 @@ export class LoginWindow extends BaseWindow {
       acceptFirstMouse: false,
       frame: false,
       //tabbingIdentifier: 'nethconnector',
-      thickFrame: false,
-      trafficLightPosition: { x: 0, y: 0 }
+      thickFrame: false
     })
+    //this._window?.webContents.openDevTools({ mode: 'detach' })
+  }
+
+  show(..._args: any): void {
+    let loginWindowHeight = 0
+    switch (AccountController.instance.listAvailableAccounts().length) {
+      case 0:
+        loginWindowHeight = 570
+        break
+      case 1:
+        loginWindowHeight = 375
+        break
+      case 2:
+        loginWindowHeight = 455
+        break
+      default:
+        loginWindowHeight = 535
+        break
+    }
+    const bounds = this._window?.getBounds()
+    this._window!.setBounds({ ...bounds, height: loginWindowHeight }, true)
+    this._window!.center()
+    this._window!.show()
+    super.show(_args)
   }
 }

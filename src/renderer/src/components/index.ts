@@ -1,2 +1,2 @@
-export * from './AvatarButton'
 export * from './SearchBox'
+export * from './Modal'

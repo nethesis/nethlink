@@ -1,87 +1,154 @@
-import { app } from 'electron'
-import {
-  LoginWindow,
-  NethConnectorWindow,
-  PhoneIslandWindow,
-  SettingsWindow,
-  SplashScreenWindow
-} from '@/classes/windows'
+import { app, protocol } from 'electron'
 import { registerIpcEvents } from '@/lib/ipcEvents'
-import { AccountController, NethVoiceAPI } from './classes/controllers'
+import { AccountController } from './classes/controllers'
 import { PhoneIslandController } from './classes/controllers/PhoneIslandController'
 import { Account } from '@shared/types'
 import { TrayController } from './classes/controllers/TrayController'
-import { IPC_EVENTS } from '@shared/constants'
+import { LoginController } from './classes/controllers/LoginController'
+import { resolve } from 'path'
+import { log } from '@shared/utils/logger'
+import { NethLinkController } from './classes/controllers/NethLinkController'
+import { SplashScreenController } from './classes/controllers/SplashScreenController'
+import { delay } from '@shared/utils/utils'
 
 new AccountController(app)
-const accountController = AccountController.instance
+
+//registro tutti gli eventi che la parte frontend emette verso il backend
 registerIpcEvents()
 
-app.whenReady().then(() => {
-  const trayController = new TrayController(toggleWindow)
-  const loginWindow = new LoginWindow()
-  const splashScreenWindow = new SplashScreenWindow()
-  const nethConnectorWindow = new NethConnectorWindow()
+app.setLoginItemSettings({
+  openAtLogin: true
+})
 
-  const phoneIslandWindow = new PhoneIslandWindow()
-  const settingsWindow = new SettingsWindow()
-  new PhoneIslandController(phoneIslandWindow)
-
-  function toggleWindow(isOpening = false) {
-    console.log('toggle')
-    // La tray deve chiudere solamente o la loginpage o la nethconnectorpage, quindi il controllo viene eseguito solo su di loro
-    if (nethConnectorWindow.isOpen() || loginWindow.isOpen()) {
-      nethConnectorWindow.hide()
-      loginWindow.close()
-    } else {
-      if (!accountController.hasConfigsFolder()) {
-        accountController.createConfigFile()
-        splashScreenWindow.show()
-        setTimeout(() => {
-          splashScreenWindow.close()
-          loginWindow.show()
-        }, 2500)
-      } else {
-        if (accountController.getLoggedAccount()) {
-          nethConnectorWindow.show()
-        } else {
-          accountController
-            .autologin(isOpening)
-            .then(() => nethConnectorWindow.show())
-            .catch(() => {
-              loginWindow.show()
-            })
-        }
-      }
-    }
-  }
-
-  accountController.onAccountChange(async (account: Account | undefined) => {
-    console.log('ACCOUNT_CHANGE', account)
-    nethConnectorWindow.emit(IPC_EVENTS.ACCOUNT_CHANGE, account)
-    if (account) {
-      try {
-        loginWindow.close()
-      } catch (e) {
-        console.log(e)
-      }
-      const phoneIslandTokenLoginResponse =
-        await NethVoiceAPI.instance.Authentication.phoneIslandTokenLogin()
-      console.log(phoneIslandTokenLoginResponse)
-      PhoneIslandController.instance.updateDataConfig(phoneIslandTokenLoginResponse.token)
-    } else {
-      console.log('phonisland logout')
-      PhoneIslandController.instance.logout()
-    }
+app.whenReady().then(async () => {
+  protocol.handle('tel', (req) => {
+    return handleTelProtocol(req.url)
+  })
+  protocol.handle('callto', (req) => {
+    return handleTelProtocol(req.url)
   })
 
-  nethConnectorWindow.addOnBuildListener(() => {
-    toggleWindow(true)
+  let windowsLoaded = 0
+  //Creo l'istanza del Tray controller - gli definisco la funzione che deve eseguire al click sull'icona
+  new SplashScreenController()
+  new TrayController()
+
+  //Visualizzo la splashscreen all'avvio dell'applicazione.
+  SplashScreenController.instance.window.addOnBuildListener(async () => {
+    SplashScreenController.instance.show()
+    new PhoneIslandController()
+    new NethLinkController()
+    new LoginController()
+    const addBuildedWindow = () => windowsLoaded++
+    PhoneIslandController.instance.window.addOnBuildListener(addBuildedWindow)
+    NethLinkController.instance.window.addOnBuildListener(addBuildedWindow)
+    LoginController.instance.window.addOnBuildListener(addBuildedWindow)
+
+    //aspetto che tutte le finestre siano pronte o un max di 2,5 secondi
+    let time = 0
+    while (windowsLoaded <= 2 && time < 25) {
+      await delay(100)
+      time++
+      //log(time, windowsLoaded)
+    }
+    TrayController.instance.enableClick = true
+
+    //constollo se esiste il file di config (il file esiste solo se almeno un utente ha effettuato il login)
+    if (AccountController.instance.hasConfigsFolder()) {
+      //sia che riesco ad effettuare il login con il token sia che lo faccio con la pagina di login mi devo registrare a questo evento
+      AccountController.instance.addEventListener('LOGIN', onAccountLogin)
+      try {
+        //provo a loggare l'utente con il token che aveva
+        await AccountController.instance.autologin()
+      } catch (e) {
+        AccountController.instance.addEventListener('LOGIN', onLoginFromloginPage)
+        LoginController.instance.show()
+      } finally {
+        //il caricamento è terminato, posso rimuovere la splashscreen
+        SplashScreenController.instance.hide()
+      }
+    } else {
+      //il caricamento è terminato, posso rimuovere la splashscreen
+      SplashScreenController.instance.hide()
+      //dichiaro cosa deve accadere quando l'utente effettua il login
+      AccountController.instance.addEventListener('LOGIN', onLoginFromloginPage)
+      AccountController.instance.addEventListener('LOGIN', onAccountLogin)
+      LoginController.instance.show()
+    }
   })
 })
+
+const onAccountLogin = (account: Account) => {
+  try {
+    //loggo il nuovo accopunt sulla phone island
+    PhoneIslandController.instance.login(account)
+    //inizializzo la pagina di nethLink e avvio i fetch di history, speeddials e l'interval sugli operatori
+    NethLinkController.instance.init(account)
+    //quando l'utente cambia devo riloggarlo sulla phone island
+  } catch (e) {
+    console.error(e)
+  }
+  AccountController.instance.removeEventListener('LOGIN', onAccountLogin)
+
+  //essendomi loggato mi registro all'evento di logout
+  AccountController.instance.addEventListener('LOGOUT', onAccountLogout)
+}
+
+const onAccountLogout = () => {
+  //ormai mi sono sloggato quindi rimuovo il listener
+  AccountController.instance.removeEventListener('LOGOUT', onAccountLogout)
+  PhoneIslandController.instance.logout()
+  NethLinkController.instance.hide()
+
+  AccountController.instance.addEventListener('LOGIN', onLoginFromloginPage)
+  AccountController.instance.addEventListener('LOGIN', onAccountLogin)
+  LoginController.instance.show()
+}
+
+const onLoginFromloginPage = (account: Account) => {
+  log('Account', account.username, 'logged from login page')
+  LoginController.instance.hide()
+  AccountController.instance.removeEventListener('LOGIN', onLoginFromloginPage)
+}
 
 app.on('window-all-closed', () => {
   app.dock?.hide()
 })
 
+// remove so we can register each time as we run the app.
+app.removeAsDefaultProtocolClient('tel')
+app.removeAsDefaultProtocolClient('callto')
+
+// if we are running a non-packaged version of the app && on windows
+if (process.env.node_env === 'development' && process.platform === 'win32') {
+  // set the path of electron.exe and your app.
+  // these two additional parameters are only available on windows.
+  app.setAsDefaultProtocolClient('tel', process.execPath, [resolve(process.argv[1])])
+  app.setAsDefaultProtocolClient('callto', process.execPath, [resolve(process.argv[1])])
+} else {
+  app.setAsDefaultProtocolClient('tel')
+  app.setAsDefaultProtocolClient('callto')
+}
+
+//windows
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+}
+
+app.on('open-url', (ev, origin) => {
+  handleTelProtocol(origin)
+})
+
 app.dock?.hide()
+
+function handleTelProtocol(url: string): Promise<Response> {
+  const tel = decodeURI(url)
+    .replace(/ /g, '')
+    .replace(/tel:\/\//g, '')
+    .replace(/callto:\/\//g, '')
+    .replace(/\//g, '')
+  log('TEL:', tel)
+  PhoneIslandController.instance.call(tel)
+  return new Promise((resolve) => resolve)
+}

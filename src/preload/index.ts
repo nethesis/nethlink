@@ -1,96 +1,158 @@
-import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { IPC_EVENTS, PHONE_ISLAND_EVENTS } from '@shared/constants'
+import {
+  Account,
+  AvailableThemes,
+  ContactType,
+  HistoryCallData,
+  NewContactType,
+  NewSpeedDialType,
+  OperatorData,
+  SearchCallData
+} from '@shared/types'
+import { preloadBindings } from 'i18next-electron-fs-backend'
+import { log } from '@shared/utils/logger'
+export type SyncResponse<T> = [T | undefined, Error | undefined]
+export type SyncPromise<T> = Promise<SyncResponse<T>>
 
 export interface IElectronAPI {
-  sendInitializationCompleted(id: string): unknown
-  onAccountChange(
-    updateAccount: (
-      e: IpcRendererEvent,
-      account: import('@shared/types').Account | undefined
-    ) => void
-  ): unknown
-  onDataConfigChange(
-    updateDataConfig: (event: IpcRendererEvent, dataConfig: string | undefined) => void
-  ): void
-  onReceiveSpeeddials(saveSpeeddials: (speeddialsResponse: any) => Promise<void>): unknown
-  onReciveLastCalls(
-    saveMissedCalls: (historyResponse: import('@shared/types').HistoryCallData) => Promise<void>
-  ): unknown
-  login: (
-    host: string,
-    username: string,
-    password: string
-  ) => Promise<import('@shared/types').Account>
-  logout: () => void
-  loadAccounts: () => Promise<import('@shared/types').Account[]>
-  startCall(phoneNumber: string): void
-  onStartCall(callback: (event: IpcRendererEvent, ...args: any[]) => void): void
+  // Use `contextBridge` APIs to expose Electron APIs to
+  // renderer only if context isolation is enabled, otherwise
+  // just add to the DOM global.
+  //TRANSLATIONS
+  i18nextElectronBackend: any
 
+  //SYNC EMITTERS - expect response
+  login: (host: string, username: string, password: string) => SyncPromise<Account>
+  addContactToPhonebook(contact: ContactType): SyncPromise<void>
+  addContactSpeedDials(contact: NewContactType): SyncPromise<ContactType>
+  editSpeedDialContact(
+    editContact: NewSpeedDialType,
+    currentContact: ContactType
+  ): SyncPromise<ContactType>
+  deleteSpeedDial(contact: ContactType): SyncPromise<string>
+
+  //LISTENERS - receive data async
+  onAccountChange(updateAccount: (account: Account | undefined) => void): void
+  onDataConfigChange(updateDataConfig: (dataConfig: string | undefined) => void): void
+  onReceiveSpeeddials(saveSpeeddials: (speeddialsResponse: any) => void): void
+  onReceiveLastCalls(saveMissedCalls: (historyResponse: HistoryCallData) => void): void
+  onLoadAccounts(callback: (accounts: Account[]) => void): void
+  onStartCall(callback: (number: string | number) => void): void
+  onSearchResult(callback: (serachResults: SearchCallData) => void): void
+  onSystemThemeChange(callback: (theme: AvailableThemes) => void): void
+  onOperatorsChange(callback: (updateOperators: OperatorData) => void): void
+
+  //EMITTER - only emit, no response
+  openDevTool(hash: string): unknown
+  logout: () => void
+  startCall(phoneNumber: string): void
+  changeTheme(theme: AvailableThemes): void
+  sendSearchText(search: string): void
+  hideLoginWindow(): void
+  resizeLoginWindow(height: number): void
+  resizePhoneIsland(offsetWidth: number, offsetHeight: number): void
+  sendInitializationCompleted(id: string): void
+  addPhoneIslandListener: (event: PHONE_ISLAND_EVENTS, callback: (...args: any[]) => void) => void
+  openMissedCallsPage: (url: string) => void
+  hideNethLink: () => void
+  openNethVoicePage: (url: string) => void
+
+  //PHONE ISLAND EVENTS:
   (funcName: PHONE_ISLAND_EVENTS): () => void
 }
 
-function addListener(event) {
-  return (callback) => ipcRenderer.on(event, callback)
+function addListener(channel) {
+  return (callback) => {
+    ipcRenderer.on(channel, (e: Electron.IpcRendererEvent, ...args) => {
+      callback(...args)
+      log('listener', channel, ...args)
+    })
+  }
 }
 
-function setEmitterSync(event) {
-  return (...args) => ipcRenderer.sendSync(event, ...args)
+function setEmitterSync<T>(event): () => SyncPromise<T> {
+  return (...args): SyncPromise<T> => {
+    return new Promise((resolve) => {
+      const res = ipcRenderer.sendSync(event, ...args)
+      log('sync emitter', event, res)
+      resolve(res)
+    })
+  }
 }
 
 function setEmitter(event) {
-  return (...args) => {
+  return (...args: any[]) => {
     ipcRenderer.send(event, ...args)
+    log('emitter', event)
   }
 }
 // @ts-ignore (define in dts)
 // Custom APIs for renderer
 const api: IElectronAPI = {
+  i18nextElectronBackend: preloadBindings(ipcRenderer, process),
   //SYNC EMITTERS - expect response
-  login: setEmitterSync(IPC_EVENTS.LOGIN),
-  loadAccounts: setEmitterSync(IPC_EVENTS.LOAD_ACCOUNTS),
+  login: setEmitterSync<Account | undefined>(IPC_EVENTS.LOGIN),
+  addContactSpeedDials: setEmitterSync<ContactType>(IPC_EVENTS.ADD_CONTACT_SPEEDDIAL),
+  addContactToPhonebook: setEmitterSync<void>(IPC_EVENTS.ADD_CONTACT_PHONEBOOK),
+  editSpeedDialContact: setEmitterSync<ContactType>(IPC_EVENTS.EDIT_SPEEDDIAL_CONTACT),
+  deleteSpeedDial: setEmitterSync<string>(IPC_EVENTS.DELETE_SPEEDDIAL),
 
   //EMITTER - only emit, no response
+  openDevTool: setEmitter(IPC_EVENTS.OPEN_DEV_TOOLS),
+  hideLoginWindow: setEmitter(IPC_EVENTS.HIDE_LOGIN_WINDOW),
   logout: setEmitter(IPC_EVENTS.LOGOUT),
   startCall: setEmitter(IPC_EVENTS.START_CALL),
   sendInitializationCompleted: setEmitter(IPC_EVENTS.INITIALIZATION_COMPELTED),
+  resizePhoneIsland: setEmitter(IPC_EVENTS.PHONE_ISLAND_RESIZE),
+  resizeLoginWindow: setEmitter(IPC_EVENTS.LOGIN_WINDOW_RESIZE),
+  changeTheme: setEmitter(IPC_EVENTS.CHANGE_THEME),
+  sendSearchText: setEmitter(IPC_EVENTS.SEARCH_TEXT),
+  openMissedCallsPage: setEmitter(IPC_EVENTS.OPEN_MISSED_CALLS_PAGE),
+  openNethVoicePage: setEmitter(IPC_EVENTS.OPEN_NETHVOICE_PAGE),
+  hideNethLink: setEmitter(IPC_EVENTS.HIDE_NETH_LINK),
 
   //LISTENERS - receive data async
+  onLoadAccounts: addListener(IPC_EVENTS.LOAD_ACCOUNTS),
   onStartCall: addListener(IPC_EVENTS.EMIT_START_CALL),
   onDataConfigChange: addListener(IPC_EVENTS.ON_DATA_CONFIG_CHANGE),
-  onAccountChange: addListener(IPC_EVENTS.ACCOUNT_CHANGE),
+  onAccountChange: (callback) => {
+    addListener(IPC_EVENTS.ACCOUNT_CHANGE)((account: Account | undefined) => {
+      const API = account?.host.split('://') || ['', '']
+      // @ts-ignore (define in dts)
+      window.CONFIG = {
+        PRODUCT_NAME: 'NethLink',
+        COMPANY_NAME: 'Nethesis',
+        COMPANY_SUBNAME: 'CTI',
+        COMPANY_URL: 'https://www.nethesis.it/',
+        API_ENDPOINT: account?.host,
+        API_SCHEME: API[0] + '://',
+        WS_ENDPOINT: 'wss://' + API[1] + 'ws'
+      }
+      callback(account)
+    })
+  },
   onReceiveSpeeddials: addListener(IPC_EVENTS.RECEIVE_SPEEDDIALS),
-  onReciveLastCalls: addListener(IPC_EVENTS.RECEIVE_HISTORY_CALLS),
+  onReceiveLastCalls: addListener(IPC_EVENTS.RECEIVE_HISTORY_CALLS),
+  onSearchResult: addListener(IPC_EVENTS.RECEIVE_SEARCH_RESULT),
+  onSystemThemeChange: addListener(IPC_EVENTS.ON_CHANGE_SYSTEM_THEME),
+  onOperatorsChange: addListener(IPC_EVENTS.OPERATORS_CHANGE),
 
-  //PHONE ISLAND EVENTS:
-  [`${PHONE_ISLAND_EVENTS['phone-island-main-presence']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-main-presence']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-conversations']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-conversations']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-queue-update']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-queue-update']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-queue-member-update']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-queue-member-update']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-user-already-login']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-user-already-login']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-server-reloaded']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-server-reloaded']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-server-disconnected']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-server-disconnected']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-socket-disconnected']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-socket-disconnected']
-  ),
-  [`${PHONE_ISLAND_EVENTS['phone-island-parking-update']}`]: setEmitter(
-    PHONE_ISLAND_EVENTS['phone-island-parking-update']
-  )
+  addPhoneIslandListener: (event, callback) => {
+    const evName = `on-${event}`
+    addListener(evName)(callback)
+  },
+
+  ...Object.keys(PHONE_ISLAND_EVENTS).reduce((p, event) => {
+    return {
+      ...p,
+      [event]: setEmitter(event)
+    }
+  }, {})
 }
+
+log(api)
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

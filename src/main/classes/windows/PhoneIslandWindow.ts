@@ -1,13 +1,13 @@
-import { createWindow } from '@/lib/windowConstructor'
 import { BaseWindow } from './BaseWindow'
-import { screen } from 'electron'
 
 export class PhoneIslandWindow extends BaseWindow {
   constructor() {
     super('phoneislandpage', {
       width: 500,
       height: 500,
-      show: true,
+      x: 10000,
+      y: 0,
+      show: false,
       fullscreenable: false,
       autoHideMenuBar: true,
       closable: false,
@@ -20,27 +20,23 @@ export class PhoneIslandWindow extends BaseWindow {
       titleBarStyle: 'hidden',
       roundedCorners: false,
       parent: undefined,
-      transparent: true,
+      transparent: false,
       hiddenInMissionControl: true,
       hasShadow: false,
       center: true,
       fullscreen: false,
+      enableLargerThanScreen: false,
       frame: false,
       //tabbingIdentifier: 'nethconnector',
-      thickFrame: true,
+      thickFrame: false,
       trafficLightPosition: { x: 0, y: 0 },
       webPreferences: {
         nodeIntegration: true
       }
     })
-  }
-
-  getWindow() {
-    return this._window
-  }
-  show(...args: any): void {
-    const display = screen.getPrimaryDisplay()
-    display.bounds.x
-    this._window
+    setTimeout(() => {
+      this.show()
+    }, 100)
+    //this._window?.webContents.openDevTools({ mode: 'detach' })
   }
 }

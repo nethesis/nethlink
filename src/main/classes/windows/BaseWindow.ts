@@ -1,6 +1,8 @@
 import { WindowOptions, createWindow } from '@/lib/windowConstructor'
+import { is } from '@electron-toolkit/utils'
 import { IPC_EVENTS } from '@shared/constants'
-import { BrowserWindow, ipcMain, ipcRenderer } from 'electron'
+import { log } from '@shared/utils/logger'
+import { BrowserWindow } from 'electron'
 
 type Callback = (...args: any) => any
 export class BaseWindow {
@@ -8,41 +10,55 @@ export class BaseWindow {
   protected _callbacks: Callback[] = []
 
   constructor(id: string, config?: WindowOptions, params?: Record<string, string>) {
+    params = {
+      ...params,
+      isDev: `${Boolean(is.dev && process.env['ELECTRON_RENDERER_URL'])}`
+    }
     this._window = createWindow(id, config, params)
-    this._window.webContents.ipc.on(
-      IPC_EVENTS.INITIALIZATION_COMPELTED,
-      async (e, completed_id) => {
-        if (id === completed_id) {
-          console.log(completed_id)
-          this._callbacks.forEach((c) => c())
-        }
+    const onReady = (_e, completed_id) => {
+      if (id === completed_id) {
+        log('on build completition of', completed_id)
+        this._callbacks.forEach((c) => c())
       }
-    )
+    }
+
+    const onOpenDevTools = (_e, page_id) => {
+      log('on build completition of', id, page_id, this._window?.webContents.isDevToolsOpened())
+      this._window?.webContents.isDevToolsOpened()
+        ? this._window?.webContents.closeDevTools()
+        : this._window?.webContents.openDevTools({
+            mode: 'detach'
+          })
+    }
+
+    this._window.webContents.ipc.on(IPC_EVENTS.INITIALIZATION_COMPELTED, onReady)
+    this._window.webContents.ipc.on(IPC_EVENTS.OPEN_DEV_TOOLS, onOpenDevTools)
+    this._window.on('close', () => {
+      this._window = createWindow(id, config, params)
+    })
   }
 
-  emit(event: IPC_EVENTS, ...args: any[]) {
-    console.log(event, args)
+  getWindow() {
+    return this._window
+  }
+
+  emit(event: IPC_EVENTS | string, ...args: any[]) {
     this._window?.webContents.send(event, ...args)
   }
 
-  hide(...args: any) {
+  hide(..._args: any) {
     this._window?.hide()
   }
 
-  show(...args: any) {
+  show(..._args: any) {
     this._window!.show()
   }
 
-  close(...args: any) {
-    this._window?.close()
-    this._window = undefined
-  }
-
-  isOpen(...args: any) {
+  isOpen(..._args: any) {
     return this._window?.isVisible()
   }
 
-  async addOnBuildListener(callback: () => void) {
+  addOnBuildListener(callback: () => void) {
     this._callbacks.push(callback)
   }
 
@@ -51,6 +67,6 @@ export class BaseWindow {
   }
 }
 
-async function timer(time) {
-  await new Promise((resolve) => setTimeout(resolve, time))
-}
+// async function timer(time) {
+//   await new Promise((resolve) => setTimeout(resolve, time))
+// }

@@ -1,12 +1,27 @@
 import { Menu, MenuItem, MenuItemConstructorOptions, Tray } from 'electron'
 import { join } from 'path'
+import { AccountController } from './AccountController'
+import { LoginController } from './LoginController'
+import { NethLinkController } from './NethLinkController'
 
 export class TrayController {
   tray: Tray
-  constructor(onTrayIconClick: () => void) {
-    this.tray = new Tray(join(__dirname, '../../resources/TrayLogo.png'))
+  enableClick = false
+
+  static instance: TrayController
+  constructor() {
+    TrayController.instance = this
+
+    this.tray = new Tray(join(__dirname, '../../public/TrayLogo.png'))
     this.tray.setIgnoreDoubleClickEvents(true)
-    this.tray.on('click', onTrayIconClick)
+    this.tray.on('click', () => {
+      if (this.enableClick) {
+        if (LoginController.instance.window?.isOpen()) LoginController.instance.hide()
+        else if (NethLinkController.instance.window.isOpen()) NethLinkController.instance.hide()
+        else if (AccountController.instance.getLoggedAccount()) NethLinkController.instance.show()
+        else LoginController.instance.show()
+      }
+    })
     const menu: (MenuItemConstructorOptions | MenuItem)[] = [
       {
         role: 'quit',

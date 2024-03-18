@@ -1,8 +1,13 @@
+export type AvailableThemes = 'system' | 'light' | 'dark'
 export type Account = {
   username: string
   accessToken?: string
   lastAccess?: string
   host: string
+  theme: AvailableThemes
+  phoneIslandPosition?: { x: number; y: number }
+  sipPort?: string
+  sipHost?: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: AccountData
 }
@@ -24,13 +29,13 @@ export type PhoneIslandConfig = {
   sipPort: string
 }
 
-export type AccountData = {
+export type BaseAccountData = {
   name: string
   username: string
-  mainPresece: string
-  presence: string
-  presenceOnBusy: string
-  presenceOnUnavailable: string
+  mainPresence: StatusTypes
+  presence: StatusTypes
+  presenceOnBusy: StatusTypes
+  presenceOnUnavailable: StatusTypes
   recallOnBusy: string
   endpoints: {
     email: BaseEndpoint[]
@@ -40,6 +45,8 @@ export type AccountData = {
     voicemail: BaseEndpoint[]
     mainextension: BaseEndpoint[]
   }
+}
+export type AccountData = BaseAccountData & {
   profile: {
     id: string
     name: string
@@ -83,33 +90,216 @@ export type UserSettings = {
   desktop_notifications: true
   open_ccard: 'enabled' | 'disabled'
   chat_notifications: true
+  avatar?: string
 }
 
-export type HistoryCallData = {
+export type MultipleResponse<T> = {
   count: number
-  rows: CallData[]
+  rows: T[]
+}
+export type HistorySpeedDialType = MultipleResponse<ContactType>
+export type HistoryCallData = MultipleResponse<CallData>
+export type SearchCallData = MultipleResponse<SearchData>
+
+export type SearchData = {
+  cellphone: string
+  company: string
+  extension: string
+  fax: string
+  homecity: string
+  homecountry: string
+  homeemail: string
+  homephone: string
+  homepob: string
+  homepostalcode: string
+  homeprovince: string
+  homestreet: string
+  id: number
+  name: string
+  notes: string
+  owner_id: string
+  source: string
+  speeddial_num: string
+  title: string
+  type: string
+  url: string
+  workcity: string
+  workcountry: string
+  workemail: string
+  workphone: string
+  workpob: string
+  workpostalcode: string
+  workprovince: string
+  workstreet: string
 }
 export type CallData = {
-  time: number
-  channel: string
-  dstchannel: string
-  uniqueid: string
-  linkedid: string
-  userfield: string
-  duration: number
-  billsec: number
-  disposition: string
-  dcontext: string
-  lastapp: string
-  recordingfile: string
-  cnum: string
-  cnam: string
-  ccompany: string
-  src: string
-  dst: string
-  dst_cnam: string
-  dst_ccompany: string
-  clid: string
-  direction: string
-  queue: null
+  time?: number
+  channel?: string
+  dstchannel?: string
+  uniqueid?: string
+  linkedid?: string
+  userfield?: string
+  duration?: number
+  billsec?: number
+  disposition?: string
+  dcontext?: string
+  lastapp?: string
+  recordingfile?: string
+  cnum?: string
+  cnam?: string
+  ccompany?: string
+  src?: string
+  dst?: string
+  dst_cnam?: string
+  dst_ccompany?: string
+  clid?: string
+  direction?: string
+  queue?: string
+}
+
+export type StatusTypes =
+  | 'available'
+  | 'online'
+  | 'dnd'
+  | 'voicemail'
+  | 'cellphone'
+  | 'callforward'
+  | 'busy'
+  | 'incoming'
+  | 'ringing'
+  | 'offline'
+
+export type ContactType = {
+  id?: string | number
+  owner_id?: string
+  type?: string
+  homeemail?: string
+  workemail?: string
+  homephone?: string
+  workphone?: string
+  cellphone?: string
+  fax?: string
+  title?: string
+  company?: string
+  notes?: string
+  name?: string
+  homestreet?: string
+  homepob?: string
+  homecity?: string
+  homeprovince?: string
+  homepostalcode?: string
+  homecountry?: string
+  workstreet?: string
+  workpob?: string
+  workcity?: string
+  workprovince?: string
+  workpostalcode?: string
+  workcountry?: string
+  url?: string
+  extension?: string
+  speeddial_num?: string
+  source?: string
+  privacy?: string
+  favorite?: boolean
+  selectedPrefNum?: string
+}
+
+export type NewContactType = {
+  name: string
+  privacy?: string
+  favorite?: boolean
+  selectedPrefNum?: string
+  setInput?: string
+  type?: string
+  speeddial_num?: string
+  company?: string
+}
+
+export type NewSpeedDialType = {
+  name: string
+  privacy?: string
+  favorite?: boolean
+  selectedPrefNum?: string
+  setInput?: string
+  type?: string
+  speeddial_num?: string
+}
+
+export type OperatorData = {
+  userEndpoints: UserEndpointsType
+  extensions: ExtensionsType
+  operators: OperatorsType
+  groups: GroupsType
+  avatars: AvatarType
+}
+
+export type UserEndpointsType = {
+  [username: string]: BaseAccountData & {
+    avatarBase64?: string
+  }
+}
+
+export type OperatorsType = {
+  [username: string]: BaseAccountData
+}
+
+export type GroupsType = {
+  [groupName: string]: {
+    users: string[] // contiene gli username
+  }
+}
+
+export type ExtensionsType = {
+  [phoneNumber: string]: {
+    cf: string
+    cfVm: string
+    cfb: string
+    cfbVm: string
+    cfu: string
+    cfuVm: string
+    chanType: string
+    codecs: string[]
+    context: string
+    conversations: {}
+    dnd: false
+    exten: string
+    ip: string
+    mac: string
+    name: string
+    port: string
+    sipuseragent: string
+    status: string
+    username: string
+  }
+}
+
+export type AvatarType = {
+  [username: string]: string //se presente c'è il base64
+}
+
+export type QueuesType = {
+  [username: string]: {
+    name: string
+    queue: string
+    members: {
+      [user: string]: {
+        callsTakenCount: number
+        lastCallTimestamp: number
+        lastPausedInReason: string
+        lastPausedInTimestamp: number
+        lastPausedOutTimestamp: number
+        loggedIn: boolean
+        member: string
+        name: string
+        paused: boolean
+        queue: string
+        type: string
+      }
+    }
+    avgHoldTime: string
+    avgTalkTime: string
+    serviceLevelPercentage: string
+    serviceLevelTimePeriod: string
+    waitingCallers: object
+  }
 }

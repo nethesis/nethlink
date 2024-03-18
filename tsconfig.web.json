@@ -6,11 +6,18 @@
     "src/renderer/src/**/*.tsx",
     "src/preload/*.d.ts",
     "src/shared/**/*",
+    "src/main/classes/controllers/StoreController.ts",
+  ],
+  "exclude": [
+    "node_modules"
   ],
   "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "skipLibCheck": true,
     "composite": true,
     "jsx": "react-jsx",
-    "noUnusedLocals": false,
     "baseUrl": ".",
     "paths": {
       "@renderer/*": [
