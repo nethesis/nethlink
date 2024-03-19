@@ -113,6 +113,7 @@ const onLoginFromloginPage = (account: Account) => {
 
 app.on('window-all-closed', () => {
   app.dock?.hide()
+  //i18nextBackend.clearMainBindings(ipcMain);
 })
 
 // remove so we can register each time as we run the app.

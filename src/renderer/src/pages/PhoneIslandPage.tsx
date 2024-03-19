@@ -3,7 +3,6 @@ import { useEventListener } from '@renderer/hooks/useEventListeners'
 import { useInitialize } from '@renderer/hooks/useInitialize'
 import loadI18n from '@renderer/lib/i18n'
 import { PHONE_ISLAND_EVENTS, PHONE_ISLAND_RESIZE } from '@shared/constants'
-import { log } from '@shared/utils/logger'
 import { useState, useEffect, useRef } from 'react'
 
 export function PhoneIslandPage() {
