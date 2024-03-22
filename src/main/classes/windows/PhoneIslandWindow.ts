@@ -3,8 +3,8 @@ import { BaseWindow } from './BaseWindow'
 export class PhoneIslandWindow extends BaseWindow {
   constructor() {
     super('phoneislandpage', {
-      width: 500,
-      height: 500,
+      width: 1,
+      height: 1,
       show: false,
       fullscreenable: false,
       autoHideMenuBar: true,
@@ -15,7 +15,6 @@ export class PhoneIslandWindow extends BaseWindow {
       movable: true,
       resizable: false,
       skipTaskbar: true,
-      titleBarStyle: 'hidden',
       roundedCorners: false,
       parent: undefined,
       transparent: false,
@@ -32,9 +31,6 @@ export class PhoneIslandWindow extends BaseWindow {
         nodeIntegration: true
       }
     })
-    setTimeout(() => {
-      this.hide()
-    }, 100)
     //this._window?.webContents.openDevTools({ mode: 'detach' })
   }
 }

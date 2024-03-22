@@ -1,24 +1,18 @@
 import { Account, PhoneIslandConfig } from '@shared/types'
 import { PhoneIslandWindow } from '../windows'
-import { IPC_EVENTS } from '@shared/constants'
+import { IPC_EVENTS, PHONE_ISLAND_EVENTS, PHONE_ISLAND_RESIZE } from '@shared/constants'
 import { log } from '@shared/utils/logger'
 import { NethVoiceAPI } from './NethCTIController'
+import { AccountController } from './AccountController'
+import { screen } from 'electron'
 
 export class PhoneIslandController {
   static instance: PhoneIslandController
-
   window: PhoneIslandWindow
-
-  isFirst = true
 
   constructor() {
     PhoneIslandController.instance = this
     this.window = new PhoneIslandWindow()
-    // this.window.getWindow()?.on('moved', (e) => {
-    //   const [x, y] = this.window.getWindow()!.getPosition()
-    //   AccountController.instance.updatePhoneIslandPosition({ x, y })
-    // })
-    //this._addListeners()
   }
 
   async login(account: Account) {
@@ -53,25 +47,65 @@ export class PhoneIslandController {
 
   resize(w: number, h: number) {
     const window = this.window.getWindow()
-    if (window) {
-      const bounds = window.getBounds()
-      if (this.isFirst) {
-        bounds.x = (bounds.width - w) / 2
-        bounds.y = (bounds.height - h) / 2
-        this.isFirst = false
+    window?.setBounds({ width: w, height: h }, false)
+    window?.show()
+  }
+
+  showPhoneIsland() {
+    const phoneIslandPosition = AccountController.instance.getAccountPhoneIslandPosition()
+    const window = this.window.getWindow()
+
+    if (phoneIslandPosition) {
+      const isPhoneIslandOnDisplay = screen.getAllDisplays().reduce((result, display) => {
+        const area = display.workArea
+        return (
+          result ||
+          (phoneIslandPosition.x >= area.x &&
+            phoneIslandPosition.y >= area.y &&
+            phoneIslandPosition.x + 420 < area.x + area.width &&
+            phoneIslandPosition.y + 98 < area.y + area.height)
+        )
+      }, false)
+      if (isPhoneIslandOnDisplay) {
+        window?.setBounds({ x: phoneIslandPosition.x, y: phoneIslandPosition.y }, false)
+      } else {
+        window?.center()
       }
-      window.setBounds({ ...bounds, width: w, height: h }, false)
-      if(!window?.isVisible()){
-        window?.show()
-      }
+    } else {
+      window?.center()
     }
+
+    window?.show()
+  }
+
+  hidePhoneIsland() {
+    const window = this.window.getWindow()
+    const phoneIslandBounds = window?.getBounds()
+    if (phoneIslandBounds) {
+      AccountController.instance.setAccountPhoneIslandPosition({
+        x: phoneIslandBounds.x,
+        y: phoneIslandBounds.y
+      })
+    }
+    window?.hide()
   }
 
   call(number: string) {
     this.window.emit(IPC_EVENTS.EMIT_START_CALL, number)
+    //TODO: WORK around per ingrandire immediatamente la schermata se il numero chiamato è l'echo test
+    if (number === '*43') {
+      setTimeout(() => {
+        const size = PHONE_ISLAND_RESIZE.get(PHONE_ISLAND_EVENTS['phone-island-call-answered'])!(
+          false
+        )
+        this.resize(size.w, size.h)
+      }, 100)
+    }
+    this.showPhoneIsland()
   }
 
   logout() {
     this.window.emit(IPC_EVENTS.ON_DATA_CONFIG_CHANGE, undefined)
+    this.hidePhoneIsland()
   }
 }

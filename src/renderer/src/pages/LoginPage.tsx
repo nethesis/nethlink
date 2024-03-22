@@ -10,6 +10,7 @@ import { TextInput } from '@renderer/components/Nethesis/TextInput'
 import { DisplayedAccountLogin } from '@renderer/components/DisplayedAccountLogin'
 import { useInitialize } from '@renderer/hooks/useInitialize'
 import { log } from '@shared/utils/logger'
+import { t } from 'i18next'
 
 type LoginData = {
   host: string
@@ -89,37 +90,35 @@ export function LoginPage() {
 
   const newAccountForm: ReactNode = (
     <div className="dark mt-7">
-      <p className="text-gray-100 text-xl font-semibold mb-3">Welcome</p>
-      <p className="text-gray-100 text-md mb-8">
-        Sign in to Nethconnector with your Nethvoice CTI username and password.
-      </p>
+      <p className="text-gray-100 text-xl font-semibold mb-3">{t('Login.New Account title')}</p>
+      <p className="text-gray-100 text-md mb-8">{t('Login.New Account description')}</p>
       <div className="flex flex-col grow gap-7">
         <TextInput
           {...register('host')}
           type="text"
-          label="Nethvoice CTI host"
+          label={t('Login.Host') as string}
           error={isError || Boolean(errors.host)}
         />
         <TextInput
           {...register('username')}
           type="text"
-          label="Username"
+          label={t('Login.Username') as string}
           error={isError || Boolean(errors.username)}
         />
         <TextInput
           {...register('password')}
-          label="Password"
+          label={t('Login.Password') as string}
           error={isError || Boolean(errors.password)}
           type={pwdVisible ? 'text' : 'password'}
           icon={pwdVisible ? faEye : faEyeSlash}
           onIconClick={() => setPwdVisible(!pwdVisible)}
           trailingIcon={true}
         />
-        <input
+        <button
           type="submit"
           className="w-full bg-blue-500 rounded h-9 font-semibold mt-2 cursor-pointer"
-          value="Sign in"
-        />
+        >{t('Login.Sign in')}
+        </button>
       </div>
     </div>
   )
@@ -162,9 +161,11 @@ export function LoginPage() {
                       newAccountForm
                     ) : (
                       <div className="dark w-full mt-7">
-                        <p className="text-gray-100 text-xl font-semibold mb-3">Account list</p>
+                        <p className="text-gray-100 text-xl font-semibold mb-3">
+                          {t('Login.Account List title')}
+                        </p>
                         <p className="text-gray-100 text-md mb-5">
-                          Choose an account to continue to Nethconnector.
+                          {t('Login.Account List description')}
                         </p>
                         <DisplayedAccountLogin
                           account={selectedAccount}
@@ -172,7 +173,7 @@ export function LoginPage() {
                         />
                         <TextInput
                           {...register('password')}
-                          label="Password"
+                          label={t('Login.Password') as string}
                           error={isError || Boolean(errors.password)}
                           className="mt-5"
                           type={pwdVisible ? 'text' : 'password'}
@@ -180,20 +181,22 @@ export function LoginPage() {
                           onIconClick={() => setPwdVisible(!pwdVisible)}
                           trailingIcon={true}
                         />
-                        <input
+                        <button
                           type="submit"
                           className="w-full bg-blue-500 rounded h-9 font-semibold mt-7 cursor-pointer"
-                          value="Sign in"
-                        />
+                        >
+                          {t('Login.Sign in')}
+                        </button>
                       </div>
                     )}
                   </div>
                 ) : (
-                  //altrimenti mostro la finestra per la creazione del primo account
                   <div className="w-full mt-7">
-                    <p className="text-gray-100 text-xl font-semibold mb-3">Account list</p>
+                    <p className="text-gray-100 text-xl font-semibold mb-3">
+                      {t('Login.Account List title')}
+                    </p>
                     <p className="text-gray-100 text-md mb-8">
-                      Choose an account to continue to Nethconnector.
+                      {t('Login.Account List description')}
                     </p>
                     <div className="max-h-60 overflow-y-auto">
                       {displayedAccounts.map((account, idx) => {
@@ -212,6 +215,7 @@ export function LoginPage() {
                 )}
               </div>
             ) : (
+              //altrimenti mostro la finestra per la creazione del primo account
               newAccountForm
             )
           }

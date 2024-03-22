@@ -133,17 +133,30 @@ export class AccountController {
     this.eventListenerCallbacks.splice(idx, 1)
   }
 
-  hasConfigsFolder() {
-    const { CONFIG_PATH } = this._getPaths()
+  hasConfigsFolderOfFile() {
+    const { CONFIG_PATH, CONFIG_FILE } = this._getPaths()
     log('CONFIG_PATH', CONFIG_PATH)
-    return fs.existsSync(CONFIG_PATH)
+    const folderExist = fs.existsSync(CONFIG_PATH)
+    if (folderExist) {
+      try {
+        const data = fs.readFileSync(CONFIG_FILE, { encoding: 'utf-8' })
+        const config = JSON.parse(data)
+        log(config)
+        return Object.keys(config).includes('accounts')
+      } catch (e) {
+        //se non riesce a trasformare il file in json allora non è ben scritto e quindi non posso andare avanti
+        log(e)
+        return false
+      }
+    }
+    return false
   }
 
   createConfigFile() {
     const { CONFIG_PATH, CONFIG_FILE } = this._getPaths()
     //Controllo se la cartella configs esiste, altrimenti la creo
 
-    if (!this.hasConfigsFolder()) {
+    if (!this.hasConfigsFolderOfFile()) {
       fs.mkdirSync(CONFIG_PATH)
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaultConfig), 'utf-8')
     } else {
@@ -154,7 +167,7 @@ export class AccountController {
   _getConfigFile(isOpeninig: boolean = false): ConfigFile {
     const { CONFIG_FILE } = this._getPaths()
 
-    if (this.hasConfigsFolder()) {
+    if (this.hasConfigsFolderOfFile()) {
       const data = fs.readFileSync(CONFIG_FILE, { encoding: 'utf-8' })
       this.config = JSON.parse(data)
       return this.config!
@@ -201,9 +214,20 @@ export class AccountController {
     this._saveNewAccountData(account)
   }
 
-  updatePhoneIslandPosition(position: { x: number; y: number }) {
-    const account = this.getLoggedAccount()
-    account!.phoneIslandPosition = position
-    this._saveNewAccountData(account)
+  getAccountPhoneIslandPosition(): { x: number; y: number } | undefined {
+    const config = this.config
+    if (config?.lastUser) {
+      return config.accounts[config.lastUser].phoneIslandPosition
+    }
+    return undefined
+  }
+
+  setAccountPhoneIslandPosition(phoneIslandPosition: { x: number; y: number }): void {
+    const config = this.config
+    const { CONFIG_FILE } = this._getPaths()
+    if (config?.lastUser) {
+      config.accounts[config.lastUser].phoneIslandPosition = phoneIslandPosition
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(config), 'utf-8')
+    }
   }
 }
