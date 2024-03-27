@@ -1,6 +1,6 @@
 import { LocalStorageData, useLocalStore } from '@renderer/store/StoreController'
 import { useSubscriber } from './useSubscriber'
-import { MutableRefObject, useEffect, useRef, useState } from 'react'
+import { MutableRefObject, useEffect, useRef } from 'react'
 import { log } from '@shared/utils/logger'
 
 export function useLocalStoreState<T>(

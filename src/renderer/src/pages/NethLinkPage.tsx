@@ -32,6 +32,12 @@ import { Button } from '@renderer/components/Nethesis'
 import avatar from '../assets/TrayLogo.png'
 import { SpeedDialFormBox } from '@renderer/components/SpeedDialFormBox'
 
+
+type TempMissedCall = {
+  number?: string
+  company?: string
+}
+
 export function NethLinkPage() {
   const [search, setSearch] = useState('')
   const [account, setAccount, accountRef] = useLocalStoreState<Account>('user')
@@ -40,13 +46,7 @@ export function NethLinkPage() {
   const [missedCalls, setMissedCalls] = useState<CallData[]>([])
   const [operators, setOperators, operatorsRef] = useLocalStoreState<OperatorData>('operators')
   const [queues, setQueues, queuesRef] = useLocalStoreState<QueuesType>('queues')
-  const [selectedMissedCall, setSelectedMissedCall] = useState<
-    | {
-        number?: string
-        company?: string
-      }
-    | undefined
-  >()
+  const [selectedMissedCall, setSelectedMissedCall] = useState<TempMissedCall | undefined>(undefined)
   const [selectedSpeedDial, setSelectedSpeedDial] = useState<ContactType>()
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false)
   const cancelDeleteButtonRef = useRef() as MutableRefObject<HTMLButtonElement>

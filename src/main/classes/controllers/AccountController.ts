@@ -157,7 +157,7 @@ export class AccountController {
     //Controllo se la cartella configs esiste, altrimenti la creo
 
     if (!this.hasConfigsFolderOfFile()) {
-      log('ENOENT')
+      //log('ENOENT')
       try {
         fs.mkdirSync(CONFIG_PATH)
       } catch (e) {

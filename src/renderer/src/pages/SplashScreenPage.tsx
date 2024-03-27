@@ -3,7 +3,6 @@ import background from '../assets/splashScreenBackground.svg'
 import header from '../assets/splashScreenHeader.svg'
 import logo from '../assets/splashScreenLogo.svg'
 import { t } from 'i18next'
-import { useState } from 'react'
 
 export function SplashScreenPage() {
   useInitialize(() => { }, true)
