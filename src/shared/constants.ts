@@ -2,6 +2,17 @@ import { Size } from "./types"
 import { log } from "./utils/logger"
 
 
+export const NethLinkPageSize = {
+  w: 400,
+  h: 400
+}
+export const NEW_ACCOUNT = 'New Account'
+
+export enum MENU_ELEMENT {
+  SPEEDDIALS,
+  LAST_CALLS,
+  ABOUT
+}
 export enum IPC_EVENTS {
   LOAD_ACCOUNTS = 'LOAD_ACCOUNTS',
   LOGIN = 'LOGIN',
@@ -26,7 +37,6 @@ export enum IPC_EVENTS {
   HIDE_NETH_LINK = 'HIDE_NETH_LINK',
   EDIT_SPEEDDIAL_CONTACT = 'EDIT_SPEEDDIAL_CONTACT',
   OPERATORS_CHANGE = 'OPERATORS_CHANGE',
-  DELETE_SPEEDDIAL = 'DELETE_SPEEDDIAL',
   OPEN_DEV_TOOLS = 'OPEN_DEV_TOOLS',
   SHOW_PHONE_ISLAND = 'SHOW_PHONE_ISLAND',
   HIDE_PHONE_ISLAND = 'HIDE_PHONE_ISLAND',
@@ -38,7 +48,14 @@ export enum IPC_EVENTS {
   UPDATE_APP_NOTIFICATION = "UPDATE_APP_NOTIFICATION",
   OPEN_EXTERNAL_PAGE = "OPEN_EXTERNAL_PAGE",
   LOAD_DATA_END = "LOAD_DATA_END",
-  SEND_NOTIFICATION = "SEND_NOTIFICATION"
+  SEND_NOTIFICATION = "SEND_NOTIFICATION",
+  UPDATE_SHARED_STATE = "UPDATE_SHARED_STATE",
+  SHARED_STATE_UPDATED = "SHARED_STATE_UPDATED",
+  REQUEST_SHARED_STATE = "REQUEST_SHARED_STATE",
+  GET_NETHVOICE_CONFIG = "GET_NETHVOICE_CONFIG",
+  SET_NETHVOICE_CONFIG = "SET_NETHVOICE_CONFIG",
+  RECONNECT_PHONE_ISLAND = "RECONNECT_PHONE_ISLAND",
+  LOGOUT_COMPLETED = "LOGOUT_COMPLETED"
 }
 
 //PHONE ISLAND EVENTS
@@ -154,13 +171,16 @@ export enum PHONE_ISLAND_EVENTS {
 }
 
 function getSize(normalSize: Size, collapsedSize?: Size, minimizedSize: Size = { w: 168, h: 40 }) {
-  return (isExpanded: boolean = true, isMinimized: boolean = false): Size => {
-    log(isExpanded, isMinimized, normalSize, collapsedSize, minimizedSize)
-    return isMinimized ? minimizedSize : ((isExpanded ? normalSize : collapsedSize) || normalSize)
+  return (isExpanded: boolean = true, isMinimized: boolean = false, isDisconnected: boolean = false): Size => {
+    const size = isMinimized ? minimizedSize : ((isExpanded ? normalSize : collapsedSize) || normalSize)
+    if (isDisconnected) {
+      size.h += 50
+    }
+    return size
   }
 }
 
-export const PHONE_ISLAND_RESIZE = new Map<string, (isExpanded: boolean, isMinimized: boolean) => Size>([
+export const PHONE_ISLAND_RESIZE = new Map<string, (isExpanded: boolean, isMinimized: boolean, isDisconnected: boolean) => Size>([
   [PHONE_ISLAND_EVENTS['phone-island-call-ringing'], getSize({ w: 420, h: 98 })],
   [PHONE_ISLAND_EVENTS['phone-island-call-started'], getSize({ w: 420, h: 98 })],
   [PHONE_ISLAND_EVENTS['phone-island-call-actions-opened'], getSize({ w: 350, h: 306 })],
